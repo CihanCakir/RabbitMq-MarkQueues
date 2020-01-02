@@ -17,18 +17,21 @@ namespace ExpoRabbitMQ.Publisher
             {
                 using (var channel = connection.CreateModel())
                 {
-                    channel.QueueDeclare("task_queue", durable: true, false, false, null);
+                    channel.ExchangeDeclare("logs", durable: true, type: ExchangeType.Fanout);
 
                     string message = GetMessage(args);
                     int i = 0;
 
-                    while (i < 1000)
+                    while (i < 100)
                     {
                         var bodyByte = Encoding.UTF8.GetBytes($"{message}-{i}");
                         var properties = channel.CreateBasicProperties();
                         properties.Persistent = true;
                         stopwatch.Start();
-                        channel.BasicPublish("", "task_queue", basicProperties: properties, body: bodyByte);
+
+                        channel.BasicPublish("logs", routingKey: "", properties, body: bodyByte);
+
+
                         Console.WriteLine($"Mesajlar Gitti :{message}-{i}");
                         i++;
 

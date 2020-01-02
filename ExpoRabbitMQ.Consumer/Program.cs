@@ -1,56 +1,50 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
-using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
-namespace ExpoRabbitMQ.Consumer
+namespace UdemyRabbitMQ.Consumer
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
+            var factory = new ConnectionFactory();
+            factory.Uri = new Uri("amqp://tpivhhjj:vCIKKcmYXHXiF29djb8XCQgOodUrcf8X@lion.rmq.cloudamqp.com/tpivhhjj");
+
+
+            using (var connection = factory.CreateConnection())
             {
-                Stopwatch stopwatch = new Stopwatch();
-
-                var factory = new ConnectionFactory();
-                factory.Uri = new Uri("amqp://tpivhhjj:vCIKKcmYXHXiF29djb8XCQgOodUrcf8X@lion.rmq.cloudamqp.com/tpivhhjj");
-                using (var connection = factory.CreateConnection())
+                using (var channel = connection.CreateModel())
                 {
-                    using (var channel = connection.CreateModel())
+                    channel.ExchangeDeclare("logs", durable: true, type: ExchangeType.Fanout);
+
+                    var queueName = channel.QueueDeclare().QueueName;
+
+                    channel.QueueBind(queue: queueName, exchange: "logs", routingKey: "");
+
+                    channel.BasicQos(prefetchSize: 0, prefetchCount: 1, false);
+
+                    Console.WriteLine("logları bekliyorum....");
+
+                    var consumer = new EventingBasicConsumer(channel);
+
+                    channel.BasicConsume(queueName, false, consumer);
+
+                    consumer.Received += (model, ea) =>
                     {
-                        channel.QueueDeclare("task_queue", true, false, false, null);
-                        channel.BasicQos(prefetchSize: 0, prefetchCount: 1, global: false);
-                        Console.WriteLine("...Mesajlar Bekleniyor");
-                        var consumer = new EventingBasicConsumer(channel);
+                        var log = Encoding.UTF8.GetString(ea.Body);
+                        Console.WriteLine("log alındı:" + log);
 
-                        channel.BasicConsume("task_queue", autoAck: false, consumer);
-                        stopwatch.Start();
+                        int time = int.Parse(GetMessage(args));
+                        Thread.Sleep(time);
+                        Console.WriteLine("loglama bitti");
 
-
-
-                        consumer.Received += (model, ea) =>
-                        {
-
-                            var message = Encoding.UTF8.GetString(ea.Body);
-
-                            Console.WriteLine("Mesaj Alındı: " + message);
-                            int time = int.Parse(GetMessage(args));
-                            Thread.Sleep(time);
-                            Console.WriteLine("Mesaj işlendi..");
-                            channel.BasicAck(ea.DeliveryTag, false);
-
-                        };
-                        stopwatch.Stop();
-
-                        Console.WriteLine($"Toplam Geçen (Süre): {stopwatch.Elapsed}");
-
-
-
-                    }
+                        channel.BasicAck(ea.DeliveryTag, multiple: false);
+                    };
+                    Console.WriteLine("Çıkış yapmak tıklayınız..");
                     Console.ReadLine();
-
                 }
             }
         }
