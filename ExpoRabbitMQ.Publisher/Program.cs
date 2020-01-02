@@ -17,26 +17,36 @@ namespace ExpoRabbitMQ.Publisher
             {
                 using (var channel = connection.CreateModel())
                 {
-                    channel.QueueDeclare("cloud", false, false, false, null);
-                    string message = "Cloud Firt Message";
-                    var bodyByte = Encoding.UTF8.GetBytes(message);
-                    int i = 0 ;
-                    stopwatch.Start();
+                    channel.QueueDeclare("task_queue", durable: true, false, false, null);
+
+                    string message = GetMessage(args);
+                    int i = 0;
 
                     while (i < 1000)
                     {
-                        channel.BasicPublish("", "cloud", null, body: bodyByte);
+                        var bodyByte = Encoding.UTF8.GetBytes($"{message}-{i}");
+                        var properties = channel.CreateBasicProperties();
+                        properties.Persistent = true;
+                        stopwatch.Start();
+                        channel.BasicPublish("", "task_queue", basicProperties: properties, body: bodyByte);
+                        Console.WriteLine($"Mesajlar Gitti :{message}-{i}");
                         i++;
+
                     }
                     stopwatch.Stop();
 
-                    Console.WriteLine("Mesajlar Gitti");
                     Console.WriteLine($"Toplam Geçen (Süre): {stopwatch.Elapsed}");
 
                 }
                 Console.WriteLine("Çıkış yapmak için Tıklayınız");
                 Console.ReadLine();
             }
+        }
+
+
+        private static string GetMessage(string[] args)
+        {
+            return args[0].ToString();
         }
     }
 }
