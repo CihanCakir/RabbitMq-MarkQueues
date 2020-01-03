@@ -10,7 +10,8 @@ namespace UdemyRabbitMQ.Consumer
     public enum LogNames
     {
         Critical,
-        Error
+        Error,
+        Warning
     } 
 
     internal class Program
@@ -25,19 +26,17 @@ namespace UdemyRabbitMQ.Consumer
             {
                 using (var channel = connection.CreateModel())
                 {
-                    channel.ExchangeDeclare("direct-exchange", durable: true, type: ExchangeType.Fanout);
+                    channel.ExchangeDeclare("topic-exchange", durable: true, type: ExchangeType.Topic);
 
                     var queueName = channel.QueueDeclare().QueueName;
 
+                    string routingKey = "Info.*.Warning";
 
-                    foreach (var item in Enum.GetNames(typeof(LogNames)))
-                    {
-                    channel.QueueBind(queue: queueName, exchange: "direct-exchange", routingKey: item);
-                    };
-
+                    channel.QueueBind(queue: queueName, exchange: "topic-exchange", routingKey: routingKey);
+       
                     channel.BasicQos(prefetchSize: 0, prefetchCount: 1, false);
 
-                    Console.WriteLine("Critical ve Error logları bekliyorum....");
+                    Console.WriteLine($"{routingKey} logları bekliyorum....");
 
                     var consumer = new EventingBasicConsumer(channel);
 
@@ -50,7 +49,7 @@ namespace UdemyRabbitMQ.Consumer
 
                         int time = int.Parse(GetMessage(args));
                         Thread.Sleep(time);
-                        File.AppendAllText("logs_critical_error.txt",log +"\n");
+                        File.AppendAllText("Info_Blank_Warning.txt",log +"\n");
                         Console.WriteLine("loglama bitti");
 
                         channel.BasicAck(ea.DeliveryTag, multiple: false);
