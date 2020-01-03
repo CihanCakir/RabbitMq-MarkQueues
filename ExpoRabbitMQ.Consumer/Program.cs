@@ -30,7 +30,7 @@ namespace UdemyRabbitMQ.Consumer
 
                     var queueName = channel.QueueDeclare().QueueName;
 
-                    string routingKey = "Info.*.Warning";
+                    string routingKey = GetLog(args);
 
                     channel.QueueBind(queue: queueName, exchange: "topic-exchange", routingKey: routingKey);
        
@@ -45,11 +45,15 @@ namespace UdemyRabbitMQ.Consumer
                     consumer.Received += (model, ea) =>
                     {
                         var log = Encoding.UTF8.GetString(ea.Body);
+                        if (log.Length == 0)
+                        {
+                            Console.WriteLine($"{routingKey} adlı log bulunamadı"); 
+                        }
                         Console.WriteLine("log alındı:" + log);
 
                         int time = int.Parse(GetMessage(args));
                         Thread.Sleep(time);
-                        File.AppendAllText("Info_Blank_Warning.txt",log +"\n");
+                        File.AppendAllText($"log-{routingKey}.txt",log +"\n");
                         Console.WriteLine("loglama bitti");
 
                         channel.BasicAck(ea.DeliveryTag, multiple: false);
@@ -63,6 +67,10 @@ namespace UdemyRabbitMQ.Consumer
         private static string GetMessage(string[] args)
         {
             return args[0].ToString();
+        }
+        private static string GetLog(string[] args)
+        {
+            return args[1].ToString();
         }
     }
 }
