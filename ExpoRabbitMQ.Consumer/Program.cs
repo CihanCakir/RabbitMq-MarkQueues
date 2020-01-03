@@ -1,6 +1,7 @@
 ﻿using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -19,42 +20,37 @@ namespace UdemyRabbitMQ.Consumer
         private static void Main(string[] args)
         {
             var factory = new ConnectionFactory();
-            factory.Uri = new Uri("amqp://tpivhhjj:vCIKKcmYXHXiF29djb8XCQgOodUrcf8X@lion.rmq.cloudamqp.com/tpivhhjj");
+             factory.Uri = new Uri("amqp://tpivhhjj:vCIKKcmYXHXiF29djb8XCQgOodUrcf8X@lion.rmq.cloudamqp.com/tpivhhjj");
 
 
             using (var connection = factory.CreateConnection())
             {
                 using (var channel = connection.CreateModel())
                 {
-                    channel.ExchangeDeclare("topic-exchange", durable: true, type: ExchangeType.Topic);
+                    channel.ExchangeDeclare("header-exchange", durable: true, type: ExchangeType.Headers);
 
-                    var queueName = channel.QueueDeclare().QueueName;
+                    
+                    var queueName = channel.QueueDeclare("Obejct1",false,false,false,null).QueueName;
 
-                    string routingKey = GetLog(args);
+                    Dictionary<string, object> headers = new Dictionary<string, object>();
+                    headers.Add("format", "pdf");
+                    headers.Add("shape", "a4");
+                    //publisherden gelen headerslerin hepsiyle uyumlu olması gerekiyorsa 
+                // =>    headers.Add("x-match", "all");
 
-                    channel.QueueBind(queue: queueName, exchange: "topic-exchange", routingKey: routingKey);
-       
-                    channel.BasicQos(prefetchSize: 0, prefetchCount: 1, false);
+                    // publisher headers da herhangi eşleşme yakalanmasını istiyorsak 
+                    headers.Add("x-match", "any");
 
-                    Console.WriteLine($"{routingKey} logları bekliyorum....");
-
+                    channel.QueueBind(queueName, "header-exchange", string.Empty, headers);
+                   
                     var consumer = new EventingBasicConsumer(channel);
 
                     channel.BasicConsume(queueName, false, consumer);
 
                     consumer.Received += (model, ea) =>
                     {
-                        var log = Encoding.UTF8.GetString(ea.Body);
-                        if (log.Length == 0)
-                        {
-                            Console.WriteLine($"{routingKey} adlı log bulunamadı"); 
-                        }
-                        Console.WriteLine("log alındı:" + log);
-
-                        int time = int.Parse(GetMessage(args));
-                        Thread.Sleep(time);
-                        File.AppendAllText($"log-{routingKey}.txt",log +"\n");
-                        Console.WriteLine("loglama bitti");
+                        var message = Encoding.UTF8.GetString(ea.Body);
+                        Console.WriteLine($"gelen mesaj: {message}");
 
                         channel.BasicAck(ea.DeliveryTag, multiple: false);
                     };
