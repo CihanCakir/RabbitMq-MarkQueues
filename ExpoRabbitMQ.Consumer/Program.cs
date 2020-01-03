@@ -1,4 +1,6 @@
-﻿using RabbitMQ.Client;
+﻿using ExpoRabbitMQ.Consumer;
+using Newtonsoft.Json;
+using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
 using System.Collections.Generic;
@@ -49,8 +51,12 @@ namespace UdemyRabbitMQ.Consumer
 
                     consumer.Received += (model, ea) =>
                     {
-                        var message = Encoding.UTF8.GetString(ea.Body);
-                        Console.WriteLine($"gelen mesaj: {message}");
+                        string message = Encoding.UTF8.GetString(ea.Body);
+
+                        User user = JsonConvert.DeserializeObject<User>(message);
+                        
+                        
+                        Console.WriteLine($"gelen mesaj: {user.Id.ToString()}- {user.Name.ToString()} \n {user.Email.ToString()}");
 
                         channel.BasicAck(ea.DeliveryTag, multiple: false);
                     };
