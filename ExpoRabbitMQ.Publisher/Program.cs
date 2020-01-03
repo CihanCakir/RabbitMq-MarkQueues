@@ -7,6 +7,14 @@ namespace ExpoRabbitMQ.Publisher
 {
     class Program
     {
+
+        public enum LogNames
+        {
+            Critical = 1,
+            Error = 2,
+            Info = 3,
+            Warning = 4
+        }
         static void Main(string[] args)
         {
             Stopwatch stopwatch = new Stopwatch();
@@ -17,22 +25,28 @@ namespace ExpoRabbitMQ.Publisher
             {
                 using (var channel = connection.CreateModel())
                 {
-                    channel.ExchangeDeclare("logs", durable: true, type: ExchangeType.Fanout);
+                    channel.ExchangeDeclare("direct-exchange", durable: true, type: ExchangeType.Fanout);
 
-                    string message = GetMessage(args);
+                    Array log_name_array = Enum.GetValues(typeof(LogNames));
+
+
                     int i = 0;
 
                     while (i < 100)
                     {
-                        var bodyByte = Encoding.UTF8.GetBytes($"{message}-{i}");
+
+                        Random rnd = new Random();
+                        LogNames log = (LogNames)log_name_array.GetValue(rnd.Next(log_name_array.Length));
+
+                        var bodyByte = Encoding.UTF8.GetBytes($"log={log.ToString()}-{i}");
                         var properties = channel.CreateBasicProperties();
                         properties.Persistent = true;
                         stopwatch.Start();
 
-                        channel.BasicPublish("logs", routingKey: "", properties, body: bodyByte);
+                        channel.BasicPublish("direct-exchange", routingKey: log.ToString(), properties, body: bodyByte);
 
 
-                        Console.WriteLine($"Mesajlar Gitti :{message}-{i}");
+                        Console.WriteLine($"Log mesajları gönderildi :{log.ToString()}-{i}");
                         i++;
 
                     }
